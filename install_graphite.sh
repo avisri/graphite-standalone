@@ -20,16 +20,35 @@ message()
 }
 
 installs=( 				\
-		epel-release		\
-		mlocate			\
-		git			\
-		vim-enhanced  		\
-		python 			\
-		pycairo  		\
-		mod_wsgi		\
-		python-django		\
-		python-django-tagging 	\
-		pytz			\
+bitmap                  \
+bitmap-fonts-compat     \
+Django14                \
+epel-release            \
+gcc                     \
+gcc-c++                 \
+git                     \
+mlocate                 \
+mod_wsgi                \
+MySQL-python            \
+pycairo                 \
+pyOpenSSL               \
+python                  \
+python-crypto           \
+python-devel            \
+python-django           \
+python-django-tagging   \
+python-ldap             \
+python-memcached        \
+python-psycopg2         \
+python-setuptools       \
+python-sqlite2          \
+python-twisted-web      \
+python-txamqp           \
+python-zope-filesystem  \
+python-zope-interface   \
+pytz                    \
+vim-enhanced            \
+zlib-static             \
 )
 
 message "---- Installing ${installs[*]},------" && {
@@ -181,18 +200,11 @@ message " ---------Initial Database Creation------------
 
    Assuming you are using the default setup, you should be able to create
    theo database with the following commands:
-"
-message"
-   You will be prompted to create an admin user; most people will want to
-   do this.
-
-   Now you must change ownership of the database file to the same user
-   that owns the Apache processes.
-   If your distribution has apache run as user 'nobody':
-" && {
-	pushd /opt/graphite/webapp/graphite
-	sudo python manage.py syncdb
-	sudo chown nobody:nobody /opt/graphite/storage/graphite.db
+" && { 
+	./configure_postgres.sh
+	echo "-------Initialize Django DB creation (requires configuring /opt/graphite/webapp/graphite/local_settings.py): "
+	pusd /opt/graphite/webapp/graphite
+	python manage.py syncdb --noinput
 	popd
 }
 
@@ -206,31 +218,53 @@ message "
    Restart apache and you should see the graphite webapp on the main page.
    If you encounter problems, you can increase the verbosity of error by
    creating a local_settings file.
-"
-cd /opt/graphite/webapp/graphite
-cp local_settings.py.example local_settings.py
-
-
-message "
-   Uncomment the following line in
-   /opt/graphite/webapp/graphite/local_settings.py
+   CONFIGURE GRAPHITE WEB
+" && { 
+#cd /opt/graphite/webapp/graphite
+#cp local_settings.py.example local_settings.py
+#Uncomment the following line in
+#/opt/graphite/webapp/graphite/local_settings.py
 # DEBUG = True
-"
+./configure_graphite_web.sh
+}
 
 message "
    Also remember that the apache logs for the graphite webapp in the
    graphite-example-vhost.conf are in /opt/graphite/storage/logs/
-
    Start Carbon (the data aggregator)
 "
 cd /opt/graphite/
 ./bin/carbon-cache.py start
 
-message "Next Steps
+message "
 
+Next Steps
    Now you have finished installing graphite, the next thing to do is put
    some real data into it. This is accomplished by sending it some data as
    demonstrated in the included
    ./examples/example-client.py
-"
+
+With this we are ready to run other installs and configure 
+- install and  configure collectd 
+- configure graphite
+	- httpd
+	- carbon cache
+-Setup some /etc/init.d scripts for 
+	- carbon cache
+
+" && {
+./install_collectd.sh
+./configure_graphite_httpd.sh
+./configure_etc_init_d_carbon_cache.sh
+}
+
+
+message "Final recursive  chowns and  Restart all " && { 
+	chown -R apache:apache /opt/graphite/storage/
+	chcon -R -h -t httpd_sys_content_t /opt/graphite/storage
+	service postgresql 	restart
+	service carbon-cache 	restart
+	service httpd	 	restart
+	service collectd 	restart
+}
 
