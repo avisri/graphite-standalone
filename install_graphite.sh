@@ -3,16 +3,19 @@
 my_pid=$$
 function cont()
 {
-	echo "continue (y/n) ?"
+	echo "continue (y/n/s(kip)) ?"
 	read a 
 	a=`echo $a| tr '[A-Z]' '[a-z]' `
-	[ "$a" != "y" ]  && exit 1 
+	[ "$a" == "n" ]  && exit 1 
+	[ "$a" == "s" ]  && return 1
+
 }
 
 message()
 {
 	echo "$*" | sed -e "s/^/[ `date` ]   /"
 	cont
+ 	return $?	
 }
 
 installs=( 			\
@@ -26,8 +29,9 @@ installs=( 			\
 		python-django	\
 )
 
-message "---- Installing ${installs[*]},------"
-sudo yum -y install "${installs[*]}"
+message "---- Installing ${installs[*]},------" && {
+	sudo yum -y install "${installs[*]}"
+}
 
 message '
 #Requirements
@@ -46,40 +50,37 @@ message '
 
  You can also use the latest source by checking it out with git:
  Installing  from Mastoer (unstable/alpha) branch
-'
+' && {
+	git clone https://github.com/graphite-project/graphite-web.gi
+	git clone https://github.com/graphite-project/carbon.git
+	git clone https://github.com/graphite-project/whisper.git
+	# 0.9.x (stable) branch
+	cd graphite-web
+	git checkout 0.9.x
+	cd ..
+	cd carbon
+	git checkout 0.9.x
+	cd ..
+	cd whisper
+	git checkout 0.9.x
+	cd ..
+}
 
-git clone https://github.com/graphite-project/graphite-web.git
-git clone https://github.com/graphite-project/carbon.git
-git clone https://github.com/graphite-project/whisper.git
+message "----------Install Whisper------------- " && {
+	pushd whisper
+	sudo python setup.py install
+	popd
+}
 
-# 0.9.x (stable) branch
-git clone https://github.com/graphite-project/graphite-web.git
-cd graphite-web
-git checkout 0.9.x
-cd ..
-git clone https://github.com/graphite-project/carbon.git
-cd carbon
-git checkout 0.9.x
-cd ..
-git clone https://github.com/graphite-project/whisper.git
-cd whisper
-git checkout 0.9.x
-cd ..
+message "-------Install Carbon--------------------"
+message "By default, everything will be installed in /opt/graphite"  && {
 
-message ----------Install Whisper-------------
-
-pushd whisper
-sudo python setup.py install
-popd
-
-message -------Install Carbon--------------------
-message "By default, everything will be installed in /opt/graphite"
-
-#   To install carbon:
-mkdir -p /opt/graphite/conf
-pushd
-python setup.py install
-popd
+	#   To install carbon:
+	mkdir -p /opt/graphite/conf
+	pushd
+	python setup.py install
+	popd
+}
 
 message "Configure Carbon"
 
@@ -114,8 +115,8 @@ retentions = 1m:395d
    example.
 '
 
-message  ----- Configure the Graphite webapp ----
-message  This is the frontend / webapp that renders the images.
+message  "----- Configure the Graphite webapp ----"
+message  "This is the frontend / webapp that renders the images"
 pushd graphite-web
 python check-dependencies.py
 popd
@@ -124,10 +125,8 @@ popd
 message "
    Use your distribution's package manager or any other means to install
    the required software.
-
    Once the dependencies are met, install Graphite:
 "
-
 
 pushd graphite-web
 python setup.py install
