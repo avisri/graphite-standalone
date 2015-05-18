@@ -8,6 +8,7 @@ function cont()
 	a=`echo $a| tr '[A-Z]' '[a-z]' `
 	[ "$a" == "n" ]  && exit 1 
 	[ "$a" == "s" ]  && return 1
+	[ "$a" == "y" ]  && return 0
 
 }
 
@@ -15,22 +16,24 @@ message()
 {
 	echo "$*" | sed -e "s/^/[ `date` ]   /"
 	cont
- 	return $?	
+ 	return $?
 }
 
-installs=( 			\
-		epel-release	\
-		mlocate		\
-		git		\
-		vim-enhanced  	\
-		python 		\
-		pycairo  	\
-		mod_wsgi	\
-		python-django	\
+installs=( 				\
+		epel-release		\
+		mlocate			\
+		git			\
+		vim-enhanced  		\
+		python 			\
+		pycairo  		\
+		mod_wsgi		\
+		python-django		\
+		python-django-tagging 	\
+		pytz			\
 )
 
 message "---- Installing ${installs[*]},------" && {
-	sudo yum -y install "${installs[*]}"
+	echo "${installs[*]}" | xargs sudo yum -y install
 }
 
 message '
@@ -72,21 +75,22 @@ message "----------Install Whisper------------- " && {
 	popd
 }
 
-message "-------Install Carbon--------------------"
-message "By default, everything will be installed in /opt/graphite"  && {
+message "-------Install Carbon--------------------
+By default, everything will be installed in /opt/graphite"  && {
 
 	#   To install carbon:
 	mkdir -p /opt/graphite/conf
-	pushd
+	pushd carbon
 	python setup.py install
 	popd
 }
 
-message "Configure Carbon"
-
-pushd /opt/graphite/conf
-cp carbon.conf.example carbon.conf
-cp storage-schemas.conf.example storage-schemas.conf
+message "Configure Carbon" && {
+	pushd /opt/graphite/conf
+	cp carbon.conf.example carbon.conf
+	cp storage-schemas.conf.example storage-schemas.conf
+	popd
+}
 
 message '
    The default values in the examples are sane, but it is strongly
@@ -115,26 +119,25 @@ retentions = 1m:395d
    example.
 '
 
-message  "----- Configure the Graphite webapp ----"
-message  "This is the frontend / webapp that renders the images"
-pushd graphite-web
-python check-dependencies.py
-popd
+message  "----- Configure the Graphite webapp ----
+This is the frontend / webapp that renders the images"   && {
+	pushd graphite-web
+	python check-dependencies.py
+	popd
+}
 
 
 message "
    Use your distribution's package manager or any other means to install
    the required software.
    Once the dependencies are met, install Graphite:
-"
+" && {
+	pushd graphite-web
+	python setup.py install
+	popd
+}
 
-pushd graphite-web
-python setup.py install
-popd
-
-message -------Configure Apache-------
-
-message "
+message "-------Configure Apache-------
    There is an example example-graphite-vhost.conf file in the examples
    directory of the graphite web source code. You can use this to
    configure apache. Different distributions have different ways of
@@ -161,13 +164,11 @@ Include /usr/local/apache2/conf/vhosts.d/*.conf
    configuration. You may want to edit the example-graphite-vhosts.conf
    file to change port numbers or use additional "SetHandler None"
    directives to allow access to other directories.
-"
+" && {
+	sudo /etc/init.d/httpd reload
+}
 
-sudo /etc/init.d/httpd reload
-
-message "
-Initial Database Creation
-
+message " ---------Initial Database Creation------------
    You must tell Django to create the database tables used by the graphite
    webapp. This is very straight forward, especially if you are using the
    default sqlite setup.
@@ -181,8 +182,6 @@ Initial Database Creation
    Assuming you are using the default setup, you should be able to create
    theo database with the following commands:
 "
-
-
 message"
    You will be prompted to create an admin user; most people will want to
    do this.
@@ -190,10 +189,12 @@ message"
    Now you must change ownership of the database file to the same user
    that owns the Apache processes.
    If your distribution has apache run as user 'nobody':
-"
-cd /opt/graphite/webapp/graphite
-sudo python manage.py syncdb
-sudo chown nobody:nobody /opt/graphite/storage/graphite.db
+" && {
+	pushd /opt/graphite/webapp/graphite
+	sudo python manage.py syncdb
+	sudo chown nobody:nobody /opt/graphite/storage/graphite.db
+	popd
+}
 
 message "
    This varies widely among different distributions.
