@@ -1,6 +1,8 @@
 #!/bin/bash 
 
 echo "-------Configure postgres to allow graphite user:"
+echo " ----install postgres packages -----"
+yum -y install postgresql postgresql-server postgresql-devel
 service postgresql initdb
 grep "listen_addresses = '0.0.0.0'" /var/lib/pgsql/data/postgresql.conf
 if [[ $? -ne 0 ]]; then
@@ -11,7 +13,6 @@ sudo -u postgres psql template1 <<END
 create user graphite with password 'graphite';
 create database graphite with owner graphite;
 END
-i
 
 echo " ------- Modify PostgreSQL "Client Authentication" -- use md5:"
 
@@ -23,5 +24,4 @@ host    all         all         127.0.0.1/32          md5
 # IPv6 local connections:
 host    all         all         ::1/128               md5
 EOM
-
 

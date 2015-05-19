@@ -73,7 +73,7 @@ message '
  You can also use the latest source by checking it out with git:
  Installing  from Mastoer (unstable/alpha) branch
 ' && {
-	git clone https://github.com/graphite-project/graphite-web.gi
+	git clone https://github.com/graphite-project/graphite-web.git
 	git clone https://github.com/graphite-project/carbon.git
 	git clone https://github.com/graphite-project/whisper.git
 	# 0.9.x (stable) branch
@@ -138,6 +138,13 @@ retentions = 1m:395d
    example.
 '
 
+message " Ehhh .. Need to install a pip for resolving deps 
+	 Src : https://pypi.python.org/pypi/txAMQP " && {
+	yum -y install python-pip
+	pip install txamqp
+}
+	 
+
 message  "----- Configure the Graphite webapp ----
 This is the frontend / webapp that renders the images"   && {
 	pushd graphite-web
@@ -184,6 +191,7 @@ Include /usr/local/apache2/conf/vhosts.d/*.conf
    file to change port numbers or use additional "SetHandler None"
    directives to allow access to other directories.
 " && {
+	./configure_graphite_httpd.sh
 	sudo /etc/init.d/httpd reload
 }
 
@@ -220,31 +228,34 @@ message "
    creating a local_settings file.
    CONFIGURE GRAPHITE WEB
 " && { 
-#cd /opt/graphite/webapp/graphite
-#cp local_settings.py.example local_settings.py
-#Uncomment the following line in
-#/opt/graphite/webapp/graphite/local_settings.py
-# DEBUG = True
-./configure_graphite_web.sh
+	#cd /opt/graphite/webapp/graphite
+	#cp local_settings.py.example local_settings.py
+	#Uncomment the following line in
+	#/opt/graphite/webapp/graphite/local_settings.py
+	# DEBUG = True
+	./configure_graphite_web.sh
 }
 
 message "
    Also remember that the apache logs for the graphite webapp in the
    graphite-example-vhost.conf are in /opt/graphite/storage/logs/
    Start Carbon (the data aggregator)
-"
-cd /opt/graphite/
-./bin/carbon-cache.py start
+" && {
+	#pushd /opt/graphite/
+	#./bin/carbon-cache.py start
+	#popd
+	./configure_etc_init_d_carbon_cache.sh
+	service carbon-cache 	restart
+}
 
 message "
-
 Next Steps
    Now you have finished installing graphite, the next thing to do is put
    some real data into it. This is accomplished by sending it some data as
    demonstrated in the included
    ./examples/example-client.py
 
-With this we are ready to run other installs and configure 
+With this we are done with  installs and configure 
 - install and  configure collectd 
 - configure graphite
 	- httpd
@@ -252,10 +263,10 @@ With this we are ready to run other installs and configure
 -Setup some /etc/init.d scripts for 
 	- carbon cache
 
+LAST : We are ready to install collectd using source ! 
+
 " && {
-./install_collectd.sh
-./configure_graphite_httpd.sh
-./configure_etc_init_d_carbon_cache.sh
+	./install_collectd.sh
 }
 
 

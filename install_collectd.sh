@@ -41,7 +41,24 @@ message " Install collectd with rrd-tool and graphite write support "  && {
 	cd /opt
 	curl -s -L http://collectd.org/files/collectd-5.4.0.tar.bz2 | tar jx
 	cd collectd-5.4.0
-	./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libdir=/usr/lib --mandir=/usr/share/man --enable-cpu --enable-curl --enable-df --enable-exec --enable-load --enable-logfile --enable-memory --enable-network --enable-nginx --enable-syslog  --enable-rrdtool --enable-uptime --enable-write_graphite
+	./configure 	--prefix=/usr 		\
+		   	--sysconfdir=/etc 	\
+			--localstatedir=/var 	\
+			--libdir=/usr/lib 	\
+			--mandir=/usr/share/man \
+			--enable-cpu 		\
+			--enable-curl 		\
+			--enable-df 		\
+			--enable-exec 		\
+			--enable-load 		\
+			--enable-logfile 	\
+			--enable-memory 	\
+			--enable-network 	\
+			--enable-nginx 		\
+			--enable-syslog  	\
+			--enable-rrdtool 	\
+			--enable-uptime 	\
+			--enable-write_graphite
 	make
 	make install
 	cp contrib/redhat/init.d-collectd /etc/init.d/collectd
