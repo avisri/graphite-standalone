@@ -32,11 +32,20 @@ WSGISocketPrefix run/wsgi
         <Location "/media/">
                 SetHandler None
         </Location>
-
+	#Was needed for centos7 ! without which it would not display anything ! all 403! 
         <Directory /opt/graphite/conf/>
-                Order deny,allow
-                Allow from all
+                #Order deny,allow
+                #Allow from all
+		Options All
+		AllowOverride All
+	        Require all granted
         </Directory>
+	#Was needed for centos 7 ! was getting error to access js files ! 
+	<Directory /opt/graphite/webapp/content>
+	    Options All
+	    AllowOverride All
+	    Require all granted
+	</Directory>
 
 </VirtualHost>
 EOF
