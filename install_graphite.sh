@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -o errexit
 my_pid=$$
 function cont()
 {
@@ -12,9 +13,13 @@ function cont()
 
 }
 
+stage=""
+no_of_stages=`grep -c "stage=" $0`
+stage_count=0
 message()
 {
-	echo "$*" | sed -e "s/^/[ `date` ]   /"
+	((stage_count++))
+	echo "$*" | sed -e "s#^#[ `date` ] (STAGE:$stage_count/$no_of_stages) < $stage >   #"
 	cont
  	return $?
 }
@@ -51,10 +56,12 @@ vim-enhanced            \
 zlib-static             \
 )
 
+stage="YUM INSTALL"
 message "---- Installing ${installs[*]},------" && {
 	echo "${installs[*]}" | xargs sudo yum -y install
 }
 
+stage="GIT CLONE"
 message '
 #Requirements
    Graphite requires:
@@ -88,15 +95,16 @@ message '
 	cd ..
 }
 
+stage="INSTALL WHISPER"
 message "----------Install Whisper------------- " && {
 	pushd whisper
 	sudo python setup.py install
 	popd
 }
 
+stage="INSTALL CARBON"
 message "-------Install Carbon--------------------
 By default, everything will be installed in /opt/graphite"  && {
-
 	#   To install carbon:
 	mkdir -p /opt/graphite/conf
 	pushd carbon
@@ -104,13 +112,7 @@ By default, everything will be installed in /opt/graphite"  && {
 	popd
 }
 
-message "Configure Carbon" && {
-	pushd /opt/graphite/conf
-	cp carbon.conf.example carbon.conf
-	cp storage-schemas.conf.example storage-schemas.conf
-	popd
-}
-
+stage="CONFIGURE CARBON"
 message '
    The default values in the examples are sane, but it is strongly
    recommended to consider how much data you would like to retain. By
@@ -136,8 +138,16 @@ retentions = 1m:395d
 
    Be sure to replace the entire [everything_1min_1day] section with this
    example.
-'
 
+Configure Carbon 
+' && {
+	pushd /opt/graphite/conf
+	cp carbon.conf.example carbon.conf
+	cp storage-schemas.conf.example storage-schemas.conf
+	popd
+}
+
+stage="INSTALL TXAMPQ"
 message " Ehhh .. Need to install a pip for resolving deps 
 	 Src : https://pypi.python.org/pypi/txAMQP " && {
 	yum -y install python-pip
@@ -145,7 +155,8 @@ message " Ehhh .. Need to install a pip for resolving deps
 }
 	 
 
-message  "----- Configure the Graphite webapp ----
+stage="CHECK GRAPHITE WEB DEPS"
+message  "----- Check deps for  the Graphite webapp ----
 This is the frontend / webapp that renders the images"   && {
 	pushd graphite-web
 	python check-dependencies.py
@@ -153,6 +164,7 @@ This is the frontend / webapp that renders the images"   && {
 }
 
 
+stage="INSTALL GRAPHITE WEB"
 message "
    Use your distribution's package manager or any other means to install
    the required software.
@@ -163,6 +175,7 @@ message "
 	popd
 }
 
+stage="CONFIGURE HTTPD FOR GRAPHITE" 
 message "-------Configure Apache-------
    There is an example example-graphite-vhost.conf file in the examples
    directory of the graphite web source code. You can use this to
@@ -192,9 +205,10 @@ Include /usr/local/apache2/conf/vhosts.d/*.conf
    directives to allow access to other directories.
 " && {
 	./configure_graphite_httpd.sh
-	sudo /etc/init.d/httpd reload
+	sudo service httpd restart
 }
 
+stage="CONFIGURE POSTGRES & INTEGRATE GRAPHITE WEB-->DB"
 message " ---------Initial Database Creation------------
    You must tell Django to create the database tables used by the graphite
    webapp. This is very straight forward, especially if you are using the
@@ -211,11 +225,12 @@ message " ---------Initial Database Creation------------
 " && { 
 	./configure_postgres.sh
 	echo "-------Initialize Django DB creation (requires configuring /opt/graphite/webapp/graphite/local_settings.py): "
-	pusd /opt/graphite/webapp/graphite
+	pushd /opt/graphite/webapp/graphite
 	python manage.py syncdb --noinput
 	popd
 }
 
+stage="CONFIGURE GRAPHITE WEB"
 message "
    This varies widely among different distributions.
 
@@ -236,6 +251,7 @@ message "
 	./configure_graphite_web.sh
 }
 
+stage="CONFIGURE CARBON CACHE"
 message "
    Also remember that the apache logs for the graphite webapp in the
    graphite-example-vhost.conf are in /opt/graphite/storage/logs/
@@ -245,9 +261,11 @@ message "
 	#./bin/carbon-cache.py start
 	#popd
 	./configure_etc_init_d_carbon_cache.sh
-	service carbon-cache 	restart
+	chmod +x /etc/init.d/carbon-cache
+	service carbon-cache restart
 }
 
+stage="INSTALL COLLECTD"
 message "
 Next Steps
    Now you have finished installing graphite, the next thing to do is put
@@ -269,7 +287,7 @@ LAST : We are ready to install collectd using source !
 	./install_collectd.sh
 }
 
-
+stage="FINAL RESTARTS"
 message "Final recursive  chowns and  Restart all " && { 
 	chown -R apache:apache /opt/graphite/storage/
 	chcon -R -h -t httpd_sys_content_t /opt/graphite/storage

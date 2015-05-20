@@ -71,6 +71,3 @@ case "$1" in
 esac
 EOF
 
-chmod +x /etc/init.d/carbon-cache
-service carbon-cache start
-

@@ -79,13 +79,18 @@ LoadPlugin "logfile"
   File "/var/log/collectd.log"
   Timestamp true
 </Plugin>
-
 LoadPlugin cpu
 LoadPlugin interface
 LoadPlugin load
 LoadPlugin memory
 LoadPlugin rrdtool
 
+Include "/etc/collectd.d"
+EOF
+
+mkdir -p  /etc/collect.d/
+
+cat > /etc/collectd.d/graphite-collectd.conf <<EOF
 LoadPlugin write_graphite
 <Plugin "write_graphite">
  <Carbon>
@@ -101,6 +106,7 @@ LoadPlugin write_graphite
  </Carbon>
 </Plugin>
 EOF
+
 }
 
 message "Restart collectd to start sending metrics to graphite" && {
