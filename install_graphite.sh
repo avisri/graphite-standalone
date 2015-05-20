@@ -262,7 +262,7 @@ message "
 	#popd
 	./configure_etc_init_d_carbon_cache.sh
 	chmod +x /etc/init.d/carbon-cache
-	service carbon-cache restart
+	service carbon-cache start
 }
 
 stage="INSTALL COLLECTD"
