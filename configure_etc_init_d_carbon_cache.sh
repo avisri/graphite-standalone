@@ -2,72 +2,110 @@
 
 cat > /etc/init.d/carbon-cache <<\EOF
 #!/bin/bash
-#
-# This is used to start/stop the carbon-cache daemon
+# chkconfig:   - 25 75
+# description: carbon-cache
+# processname: carbon-cache
 
-# chkconfig: - 99 01
-# description: Starts the carbon-cache daemon
+export PYTHONPATH="$GRAPHITE_DIR/lib:$PYTHONPATH"
 
 # Source function library.
-. /etc/init.d/functions
+if [ -e /etc/rc.d/init.d/functions ]; then
+    . /etc/rc.d/init.d/functions;
+fi;
 
-RETVAL=0
-prog="carbon-cache"
+CARBON_DAEMON="cache"
+GRAPHITE_DIR="/opt/graphite"
+INSTANCES=`grep "^\[${CARBON_DAEMON}" ${GRAPHITE_DIR}/conf/carbon.conf | cut -d \[ -f 2 | cut -d \] -f 1 | cut -d : -f 2`
 
-start_relay () {
-    /usr/bin/python /opt/graphite/bin/carbon-relay.py start
-        RETVAL=$?
-        [ $RETVAL -eq 0 ] && success || failure
-        echo
-        return $RETVAL
+function die {
+  echo $1
+  exit 1
 }
 
-start_cache () {
-     /usr/bin/python /opt/graphite/bin/carbon-cache.py start
-        RETVAL=$?
-        [ $RETVAL -eq 0 ] && success || failure
-        echo
-        return $RETVAL
+start(){
+    cd $GRAPHITE_DIR;
+
+    for INSTANCE in ${INSTANCES}; do
+        if [ "${INSTANCE}" == "${CARBON_DAEMON}" ]; then
+            INSTANCE="a";
+        fi;
+        echo "Starting carbon-${CARBON_DAEMON}:${INSTANCE}..."
+        bin/carbon-${CARBON_DAEMON}.py --instance=${INSTANCE} start;
+
+        if [ $? -eq 0 ]; then
+            echo_success
+        else
+            echo_failure
+        fi;
+        echo ""
+    done;
 }
 
-stop_relay () {
-    /usr/bin/python /opt/graphite/bin/carbon-relay.py stop
-        RETVAL=$?
-        [ $RETVAL -eq 0 ] && success || failure
-        echo
-        return $RETVAL
+stop(){
+    cd $GRAPHITE_DIR
+
+    for INSTANCE in ${INSTANCES}; do
+        if [ "${INSTANCE}" == "${CARBON_DAEMON}" ]; then
+            INSTANCE="a";
+        fi;
+        echo "Stopping carbon-${CARBON_DAEMON}:${INSTANCE}..."
+        bin/carbon-${CARBON_DAEMON}.py --instance=${INSTANCE} stop
+
+        if [ `sleep 3; /usr/bin/pgrep -f "carbon-${CARBON_DAEMON}.py --instance=${INSTANCE}" | /usr/bin/wc -l` -gt 0 ]; then
+            echo "Carbon did not stop yet. Sleeping longer, then force killing it...";
+            sleep 20;
+            /usr/bin/pkill -9 -f "carbon-${CARBON_DAEMON}.py --instance=${INSTANCE}";
+        fi;
+
+        if [ $? -eq 0 ]; then
+            echo_success
+        else
+            echo_failure
+        fi;
+        echo ""
+    done;
 }
 
-stop_cache () {
-          /usr/bin/python /opt/graphite/bin/carbon-cache.py stop
-        RETVAL=$?
-        [ $RETVAL -eq 0 ] && success || failure
-        echo
-        return $RETVAL
+status(){
+    cd $GRAPHITE_DIR;
+
+    for INSTANCE in ${INSTANCES}; do
+        if [ "${INSTANCE}" == "${CARBON_DAEMON}" ]; then
+            INSTANCE="a";
+        fi;
+        bin/carbon-${CARBON_DAEMON}.py --instance=${INSTANCE} status;
+    
+        if [ $? -eq 0 ]; then
+            echo_success
+        else
+            echo_failure
+        fi;
+        echo ""
+    done;
 }
 
-# See how we were called.
 case "$1" in
   start)
-    #start_relay
-    start_cache
-        ;;
-  stop)
-    #stop_relay
-    stop_cache
-        ;;
-  restart)
-    #stop_relay
-    stop_cache
-    sleep 5
-    #start_relay
-    start_cache
+    start 
     ;;
-
+  stop)
+    stop
+    ;;
+  status)
+    status
+    ;;
+  restart|reload)
+    stop
+    start
+    ;;
   *)
-        echo $"Usage: $0 {start|stop}"
-        exit 2
-        ;;
+    echo $"Usage: $0 {start|stop|restart|status}"
+    exit 1
 esac
 EOF
+
+#Add to chkconfig
+chmod +x /etc/init.d/carbon-cache
+chkconfig --add carbon-cache
+chkconfig carbon-cache  on 
 
