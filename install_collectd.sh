@@ -37,10 +37,20 @@ message "---- Installing ${installs[*]},------" && {
 	echo "${installs[*]}" | xargs sudo yum -y install
 }
 
-message " Install collectd with rrd-tool and graphite write support "  && {
+message " Install/reinstall  collectd with rrd-tool and graphite write support "  && {
+	grep -q -i 'release 6' /etc/*-release  &&  ./install-rhel6-rrdtool.sh 
 	cd /opt
-	curl -s -L http://collectd.org/files/collectd-5.4.0.tar.bz2 | tar jx
-	cd collectd-5.4.0
+	version="5.5.0"
+	date=`date +%s`
+	sha="847684cf5c10de1dc34145078af3fcf6e0d168ba98c14f1343b1062a4b569e88"
+	rm -f collectd-${version}.tar.bgz
+	wget https://collectd.org/files/collectd-${version}.tar.bz2 
+	cksum=`sha256sum collectd-${version}.tar.bz2| awk '{print $1}'`
+	[ "$sha" != "$cksum" ] && echo "checksum is not matching after download from source.. exiting "  && exit 1
+	mv collectd-${version} collectd-${version}.bak.$date 
+	tar jxf collectd-${version}.tar.bz2 
+	cd collectd-${version}
+	pwd
 	./configure 	--prefix=/usr 		\
 		   	--sysconfdir=/etc 	\
 			--localstatedir=/var 	\
@@ -61,7 +71,8 @@ message " Install collectd with rrd-tool and graphite write support "  && {
 			--enable-write_graphite
 	make
 	make install
-	cp contrib/redhat/init.d-collectd /etc/init.d/collectd
+	cp -v contrib/redhat/init.d-collectd /etc/init.d/collectd
+	read
 	chmod 755 /etc/init.d/collectd
 	chown root:root /etc/init.d/collectd
 	/etc/init.d/collectd start
@@ -70,25 +81,16 @@ message " Install collectd with rrd-tool and graphite write support "  && {
 
 message "
 Configure collectd to write system metrics to graphite by editing /etc/collectd.conf and adding the following lines:" && { 
-cat > /etc/collectd.conf <<EOF
-LoadPlugin syslog
-
-LoadPlugin "logfile"
-<Plugin "logfile">
-  LogLevel "info"
-  File "/var/log/collectd.log"
-  Timestamp true
-</Plugin>
-LoadPlugin cpu
-LoadPlugin interface
-LoadPlugin load
-LoadPlugin memory
-LoadPlugin rrdtool
-
-Include "/etc/collectd.d"
-EOF
-
 mkdir -p  /etc/collect.d/
+
+cat > /etc/collectd.d/unixsock.conf <<EOF
+LoadPlugin unixsock
+<Plugin unixsock>
+	SocketFile "/usr/var/run/collectd-unixsock"
+	SocketGroup "collectd"
+	SocketPerms "0660"
+</Plugin>
+EOF
 
 cat > /etc/collectd.d/graphite-collectd.conf <<EOF
 LoadPlugin write_graphite
@@ -110,6 +112,31 @@ EOF
 }
 
 message "Restart collectd to start sending metrics to graphite" && {
+
+	echo '
+
+LoadPlugin syslog
+
+LoadPlugin "logfile"
+<Plugin "logfile">
+  LogLevel "info"
+  File "/var/log/collectd.log"
+  Timestamp true
+</Plugin>
+
+LoadPlugin cpu
+LoadPlugin interface
+LoadPlugin load
+LoadPlugin memory
+LoadPlugin rrdtool
+LoadPlugin uptime
+LoadPlugin users
+LoadPlugin uuid
+
+
+Include "/etc/collectd.d/*.conf"
+
+' > /etc/collectd.conf 
 	/etc/init.d/collectd restart
 }
 

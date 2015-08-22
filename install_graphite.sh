@@ -40,7 +40,7 @@ pyOpenSSL               \
 python                  \
 python-crypto           \
 python-devel            \
-python-django           \
+python-django15         \
 python-django-tagging   \
 python-ldap             \
 python-memcached        \
@@ -58,7 +58,10 @@ zlib-static             \
 
 stage="YUM INSTALL"
 message "---- Installing ${installs[*]},------" && {
-	echo "${installs[*]}" | xargs sudo yum -y install
+	#echo "${installs[*]}" | xargs sudo yum -q -y install || true
+	echo "${installs[*]}" | xargs -n1 sudo rpm -q --last
+	message "---- Press any key to continue --- "
+	read
 }
 
 stage="GIT CLONE"
