@@ -85,7 +85,7 @@ mkdir -p  /etc/collect.d/
 cat > /etc/collectd.d/unixsock.conf <<EOF
 LoadPlugin unixsock
 <Plugin unixsock>
-	SocketFile "/usr/var/run/collectd-unixsock"
+	SocketFile "/var/run/collectd-unixsock"
 	SocketGroup "collectd"
 	SocketPerms "0660"
 </Plugin>
