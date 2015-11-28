@@ -72,7 +72,6 @@ message " Install/reinstall  collectd with rrd-tool and graphite write support "
 	make
 	make install
 	cp -v contrib/redhat/init.d-collectd /etc/init.d/collectd
-	read
 	chmod 755 /etc/init.d/collectd
 	chown root:root /etc/init.d/collectd
 	/etc/init.d/collectd start
@@ -86,7 +85,7 @@ mkdir -p  /etc/collect.d/
 cat > /etc/collectd.d/unixsock.conf <<EOF
 LoadPlugin unixsock
 <Plugin unixsock>
-	SocketFile "/usr/var/run/collectd-unixsock"
+	SocketFile "/var/run/collectd-unixsock"
 	SocketGroup "collectd"
 	SocketPerms "0660"
 </Plugin>
