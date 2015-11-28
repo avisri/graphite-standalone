@@ -8,7 +8,7 @@ cat > /etc/httpd/conf.d/graphite.conf <<EOF
     LoadModule wsgi_module modules/mod_wsgi.so
 </IfModule>
 
-WSGISocketPrefix run/wsgi
+WSGISocketPrefix /var/run/wsgi
 
 <VirtualHost *:80>
         ServerName $(hostname -f)

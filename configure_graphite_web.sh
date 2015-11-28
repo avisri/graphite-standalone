@@ -25,6 +25,7 @@ from graphite.logger import log
 log.info("graphite.wsgi - pid %d - reloading search index" % os.getpid())
 import graphite.metrics.search
 EOF
+chmod 755 /opt/graphite/conf/graphite.wsgi
 
 echo  "------Configuring whisper-----"
 cat > /opt/graphite/conf/storage-schemas.conf <<EOF
