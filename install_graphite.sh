@@ -96,6 +96,12 @@ message '
 	cd whisper
 	git checkout 0.9.x
 	cd ..
+	#Yuck on rhel 6 we need to give this extra perms as apache 
+	#struggles to load this file as it is not readable 
+	#failing as 
+	#import whisper  failed  , cannot load module
+	chmod a+r /usr/lib/python2.6/site-packages/whisper.py* 
+
 }
 
 stage="INSTALL WHISPER"
@@ -252,6 +258,10 @@ message "
 	#/opt/graphite/webapp/graphite/local_settings.py
 	# DEBUG = True
 	./configure_graphite_web.sh
+	#EEEEE for some reason installing from code makes this dir perms 700
+	#this will avoid apache error : (13) Permission Denied
+	chmod 711 /opt/graphite
+i	chmod 711 /opt/graphite/conf/
 }
 
 stage="CONFIGURE CARBON CACHE"
@@ -290,10 +300,21 @@ LAST : We are ready to install collectd using source !
 	./install_collectd.sh
 }
 
+stage="SE LINUX "
+message " If seLinux is enabled then we have some more work to do " && {
+	#listing what is on already 
+	selinuxenabled  &&  getsebool -a | grep httpd | grep on$
+	#minimal we will need is talking to db
+	selinuxenabled  &&  setsebool   httpd_can_network_connect_db
+	# list all again 
+	selinuxenabled  &&  getsebool -a | grep httpd | grep on$
+
+}
 stage="FINAL RESTARTS"
 message "Final recursive  chowns and  Restart all " && { 
-	chown -R apache:apache /opt/graphite/storage/
+	chown -R apache:apache 		   /opt/graphite/storage/
 	chcon -R -h -t httpd_sys_content_t /opt/graphite/storage
+	chcon -R    -t httpd_sys_content_t /opt/graphite/storage
 	service postgresql 	restart
 	service carbon-cache 	restart
 	service httpd	 	restart
